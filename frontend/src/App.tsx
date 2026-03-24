@@ -1,7 +1,11 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { AttendanceLeaderboard } from "./components/AttendanceLeaderboard";
 import { KpiCards } from "./components/KpiCards";
 import { MapPanel } from "./components/MapPanel";
+import { SupervisorTaskComposer } from "./components/SupervisorTaskComposer";
+import { TaskKanbanBoard } from "./components/TaskKanbanBoard";
 import { TaskTable } from "./components/TaskTable";
+import { AttendanceTrendChart, ProductivityBars } from "./components/TrendCharts";
 import {
   type AuthUser,
   type DashboardOverview,
@@ -10,12 +14,15 @@ import {
   getAdminReports,
   getCurrentUser,
   getSupervisorDashboard,
+  getSupervisorResources,
   getTasks,
   getWorkerDashboard,
   getWorkerTasks,
   login,
   logout,
-  signup
+  signup,
+  createSupervisorTask,
+  uploadTaskProof
 } from "./lib/api";
 import { socket } from "./lib/socket";
 
@@ -28,6 +35,20 @@ interface TrackingUpdate {
   capturedAt: string;
 }
 
+interface TaskAssignedUpdate {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  assignedWorkerName: string;
+  dueAt: string;
+  completedProofs: number;
+  expectedPhotoCount: number;
+  beforeImageUrl?: string | null;
+  afterImageUrl?: string | null;
+  geofenceId?: string | null;
+}
+
 interface TaskItem {
   id: string;
   title: string;
@@ -37,6 +58,9 @@ interface TaskItem {
   dueAt: string;
   completedProofs: number;
   expectedPhotoCount: number;
+  beforeImageUrl?: string | null;
+  afterImageUrl?: string | null;
+  geofenceId?: string | null;
 }
 
 const wardId = "11111111-1111-1111-1111-111111111111";
@@ -50,11 +74,19 @@ const fallbackDashboard: DashboardOverview = {
   },
   map: {
     workers: [],
-    geofences: []
+    geofences: [],
+    tasks: []
   },
   analytics: {
     attendanceTrend: [],
     productivity: [],
+    attendanceLeaderboard: [],
+    taskStatusSummary: {
+      pending: 0,
+      completed: 0,
+      inProgress: 0
+    },
+    recentCompletedTasks: [],
     heatmap: []
   }
 };
@@ -81,6 +113,20 @@ function routeForRole(role: Role): RoutePath {
 function navigate(path: RoutePath) {
   window.history.pushState({}, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function readCachedUser() {
+  const raw = localStorage.getItem("civictrack_user");
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    localStorage.removeItem("civictrack_user");
+    return null;
+  }
 }
 
 function AuthCard({
@@ -276,12 +322,23 @@ function WorkerView({
   user,
   workerSummary,
   tasks,
-  onLogout
+  onLogout,
+  onUploadProof,
+  uploadingStageByTask
 }: {
   user: AuthUser;
-  workerSummary: { quickActions: string[]; taskSummary: { assigned: number } } | null;
+  workerSummary: {
+    attendance: {
+      checkedInToday: boolean;
+      presentDaysThisMonth: number;
+    };
+    status: "active" | "idle";
+    taskSummary: { assigned: number };
+  } | null;
   tasks: TaskItem[];
   onLogout: () => void;
+  onUploadProof: (taskId: string, stage: "before" | "after", file: File) => Promise<void>;
+  uploadingStageByTask: Record<string, "before" | "after" | null>;
 }) {
   return (
     <RoleShell
@@ -296,15 +353,19 @@ function WorkerView({
           <strong>{workerSummary?.taskSummary.assigned ?? 0}</strong>
         </div>
         <div>
-          <span className="filter-label">Quick Actions</span>
-          <strong>{workerSummary?.quickActions.join(", ") ?? "check_in, upload_proof"}</strong>
+          <span className="filter-label">Attendance</span>
+          <strong>
+            {workerSummary
+              ? `${workerSummary.attendance.checkedInToday ? "Checked in today" : "Not checked in"} | ${workerSummary.attendance.presentDaysThisMonth} days this month`
+              : "Attendance unavailable"}
+          </strong>
         </div>
         <div>
-          <span className="filter-label">Auth Mode</span>
-          <strong>Email + Password</strong>
+          <span className="filter-label">Status</span>
+          <strong>{workerSummary?.status ?? "idle"}</strong>
         </div>
       </section>
-      <TaskTable tasks={tasks} />
+      <TaskTable tasks={tasks} onUploadProof={onUploadProof} uploadingStageByTask={uploadingStageByTask} />
     </RoleShell>
   );
 }
@@ -314,13 +375,31 @@ function SupervisorView({
   dashboard,
   tasks,
   status,
-  onLogout
+  onLogout,
+  resources,
+  selectedGeofenceId,
+  onSelectGeofence,
+  onCreateTask
 }: {
   user: AuthUser;
   dashboard: DashboardOverview;
   tasks: TaskItem[];
   status: string;
   onLogout: () => void;
+  resources: {
+    workers: Array<{ id: string; name: string; status: string; wardId: string }>;
+    geofences: Array<{ id: string; name: string; wardId: string; center: [number, number]; radiusMeters: number; type: "radius" }>;
+  };
+  selectedGeofenceId: string | null;
+  onSelectGeofence: (geofenceId: string) => void;
+  onCreateTask: (payload: {
+    title: string;
+    description?: string;
+    geofenceId: string;
+    assignedTo: string;
+    dueAt?: string;
+    priority?: "low" | "medium" | "high" | "critical";
+  }) => Promise<void>;
 }) {
   return (
     <RoleShell
@@ -342,27 +421,42 @@ function SupervisorView({
           <span className="filter-label">Geofences</span>
           <strong>{dashboard.map.geofences.length}</strong>
         </div>
+        <div>
+          <span className="filter-label">Task Live Status</span>
+          <strong>
+            {dashboard.analytics.taskStatusSummary.pending} pending / {dashboard.analytics.taskStatusSummary.inProgress} active
+          </strong>
+        </div>
       </section>
       <KpiCards stats={dashboard.kpis} />
       <section className="layout-grid">
-        <MapPanel workers={dashboard.map.workers} geofences={dashboard.map.geofences} />
+        <MapPanel
+          workers={dashboard.map.workers}
+          geofences={dashboard.map.geofences}
+          tasks={dashboard.map.tasks}
+          selectedGeofenceId={selectedGeofenceId}
+        />
         <section className="panel analytics-panel">
           <div className="panel-header">
             <h2>Supervisor Analytics</h2>
             <span>Team compliance and field productivity</span>
           </div>
-          <div className="analytics-list">
-            <article>
-              <strong>Attendance Trend</strong>
-              <p>{dashboard.analytics.attendanceTrend.map((item) => `${item.date}: ${item.present}`).join(" | ")}</p>
-            </article>
-            <article>
-              <strong>Productivity</strong>
-              <p>{dashboard.analytics.productivity.map((item) => `${item.label}: ${item.value}`).join(" | ")}</p>
-            </article>
+          <div className="analytics-visual-grid">
+            <AttendanceTrendChart items={dashboard.analytics.attendanceTrend} />
+            <ProductivityBars items={dashboard.analytics.productivity} />
           </div>
         </section>
       </section>
+      <section className="layout-grid">
+        <SupervisorTaskComposer
+          workers={resources.workers}
+          geofences={resources.geofences}
+          onSelectGeofence={onSelectGeofence}
+          onCreateTask={onCreateTask}
+        />
+        <AttendanceLeaderboard items={dashboard.analytics.attendanceLeaderboard} />
+      </section>
+      <TaskKanbanBoard tasks={tasks} recentCompletedTasks={dashboard.analytics.recentCompletedTasks} />
       <TaskTable tasks={tasks} />
     </RoleShell>
   );
@@ -433,7 +527,11 @@ export default function App() {
   const [dashboard, setDashboard] = useState<DashboardOverview>(fallbackDashboard);
   const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks);
   const [workerSummary, setWorkerSummary] = useState<{
-    quickActions: string[];
+    attendance: {
+      checkedInToday: boolean;
+      presentDaysThisMonth: number;
+    };
+    status: "active" | "idle";
     taskSummary: { assigned: number };
   } | null>(null);
   const [reports, setReports] = useState<{
@@ -441,9 +539,18 @@ export default function App() {
     exports: string[];
   } | null>(null);
   const [status, setStatus] = useState("Awaiting authentication");
+  const [uploadingStageByTask, setUploadingStageByTask] = useState<Record<string, "before" | "after" | null>>({});
   const [loading, setLoading] = useState(false);
   const [authHint, setAuthHint] = useState("");
   const [error, setError] = useState("");
+  const [selectedGeofenceId, setSelectedGeofenceId] = useState<string | null>(null);
+  const [supervisorResources, setSupervisorResources] = useState<{
+    workers: Array<{ id: string; name: string; status: string; wardId: string }>;
+    geofences: Array<{ id: string; name: string; wardId: string; center: [number, number]; radiusMeters: number; type: "radius" }>;
+  }>({
+    workers: [],
+    geofences: []
+  });
 
   useEffect(() => {
     const handlePopState = () => setRoute(getInitialRoute());
@@ -457,13 +564,22 @@ export default function App() {
       return;
     }
 
+    const cachedUser = readCachedUser();
+    if (cachedUser) {
+      setUser(cachedUser);
+      navigate(routeForRole(cachedUser.role));
+      return;
+    }
+
     getCurrentUser(token)
       .then(({ user: currentUser }) => {
+        localStorage.setItem("civictrack_user", JSON.stringify(currentUser));
         setUser(currentUser);
         navigate(routeForRole(currentUser.role));
       })
       .catch(() => {
         localStorage.removeItem("civictrack_token");
+        localStorage.removeItem("civictrack_user");
       });
   }, []);
 
@@ -491,23 +607,31 @@ export default function App() {
       Promise.all([getWorkerDashboard(), getWorkerTasks()])
         .then(([workerData, taskData]) => {
           setWorkerSummary({
-            quickActions: workerData.quickActions,
+            attendance: workerData.attendance,
+            status: workerData.status,
             taskSummary: workerData.taskSummary
           });
           setTasks(taskData.items);
           setStatus("Worker session ready");
+          socket.connect();
+          socket.emit("presence:join", { userId: user.id, role: user.role });
         })
         .catch((routeError) => setError((routeError as Error).message));
-      return;
+      return () => {
+        socket.disconnect();
+      };
     }
 
     if (route === "/supervisor") {
-      Promise.all([getSupervisorDashboard(), getTasks()])
-        .then(([dashboardData, taskData]) => {
+      Promise.all([getSupervisorDashboard(), getTasks(), getSupervisorResources()])
+        .then(([dashboardData, taskData, resourceData]) => {
           setDashboard(dashboardData);
           setTasks(taskData.items);
+          setSupervisorResources(resourceData);
+          setSelectedGeofenceId(resourceData.geofences[0]?.id ?? null);
           setStatus("Supervisor live view connected");
           socket.connect();
+          socket.emit("presence:join", { userId: user.id, role: user.role });
         })
         .catch((routeError) => setError((routeError as Error).message));
       return () => {
@@ -523,6 +647,7 @@ export default function App() {
           setReports(reportData);
           setStatus("Admin analytics loaded");
           socket.connect();
+          socket.emit("presence:join", { userId: user.id, role: user.role });
         })
         .catch((routeError) => setError((routeError as Error).message));
       return () => {
@@ -558,12 +683,130 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleTaskAssigned = (payload: TaskAssignedUpdate) => {
+      if (user?.role !== "worker") {
+        return;
+      }
+
+      let taskWasAlreadyPresent = false;
+      setTasks((current) => {
+        taskWasAlreadyPresent = current.some((task) => task.id === payload.id);
+        return [payload, ...current.filter((task) => task.id !== payload.id)];
+      });
+      setWorkerSummary((current) =>
+        current
+          ? {
+              ...current,
+              status: "active",
+              taskSummary: {
+                assigned: current.taskSummary.assigned + (taskWasAlreadyPresent ? 0 : 1)
+              }
+            }
+          : current
+      );
+      setStatus("New task assigned");
+    };
+
+    socket.on("task:assigned", handleTaskAssigned);
+    return () => {
+      socket.off("task:assigned", handleTaskAssigned);
+    };
+  }, [user?.role]);
+
+  useEffect(() => {
+    const handleTaskUpdated = (payload: TaskAssignedUpdate) => {
+      setTasks((current) => current.map((task) => (task.id === payload.id ? { ...task, ...payload } : task)));
+
+      if (user?.role === "supervisor" || user?.role === "admin") {
+        setDashboard((current) => {
+          const nextMapTasks = current.map.tasks.map((task) =>
+            task.id === payload.id
+              ? {
+                  ...task,
+                  title: payload.title,
+                  status: payload.status,
+                  geofenceId: payload.geofenceId ?? null,
+                  assignedWorkerName: payload.assignedWorkerName
+                }
+              : task
+          );
+
+          const nextAllTasks = tasks.map((task) => (task.id === payload.id ? { ...task, ...payload } : task));
+          const nextPending = nextAllTasks.filter((task) => task.status !== "completed").length;
+          const nextCompleted = nextAllTasks.filter((task) => task.status === "completed").length;
+          const nextInProgress = nextAllTasks.filter((task) => task.status === "in_progress").length;
+
+          return {
+            ...current,
+            map: {
+              ...current.map,
+              tasks: nextMapTasks
+            },
+            analytics: {
+              ...current.analytics,
+              taskStatusSummary: {
+                pending: nextPending,
+                completed: nextCompleted,
+                inProgress: nextInProgress
+              }
+            }
+          };
+        });
+      }
+    };
+
+    socket.on("task:updated", handleTaskUpdated);
+    return () => {
+      socket.off("task:updated", handleTaskUpdated);
+    };
+  }, [tasks, user?.role]);
+
+  useEffect(() => {
+    if (route !== "/worker" || user?.role !== "worker") {
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    const sendLocationPing = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          socket.emit("tracking:ping", {
+            userId: user.id,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracyMeters: position.coords.accuracy,
+            batteryLevel: undefined,
+            capturedAt: new Date().toISOString()
+          });
+        },
+        () => undefined,
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 30000
+        }
+      );
+    };
+
+    sendLocationPing();
+    const intervalId = window.setInterval(sendLocationPing, 60_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [route, user]);
+
   async function handleLogin(email: string, password: string) {
     try {
       setLoading(true);
       setError("");
       const result = await login({ email, password });
       localStorage.setItem("civictrack_token", result.accessToken);
+      localStorage.setItem("civictrack_user", JSON.stringify(result.user));
       setUser(result.user);
       navigate(routeForRole(result.user.role));
     } catch (requestError) {
@@ -595,11 +838,104 @@ export default function App() {
     }
   }
 
+  async function handleCreateSupervisorTask(payload: {
+    title: string;
+    description?: string;
+    geofenceId: string;
+    assignedTo: string;
+    dueAt?: string;
+    priority?: "low" | "medium" | "high" | "critical";
+  }) {
+    try {
+      setError("");
+      const createdTask = await createSupervisorTask(payload);
+      setTasks((current) => [createdTask, ...current]);
+      setDashboard((current) => ({
+        ...current,
+        map: {
+          ...current.map,
+          tasks: [
+            {
+              id: createdTask.id,
+              title: createdTask.title,
+              status: createdTask.status,
+              geofenceId: createdTask.geofenceId ?? null,
+              assignedWorkerName: createdTask.assignedWorkerName
+            },
+            ...current.map.tasks
+          ]
+        },
+        analytics: {
+          ...current.analytics,
+          taskStatusSummary: {
+            ...current.analytics.taskStatusSummary,
+            pending: current.analytics.taskStatusSummary.pending + (createdTask.status === "completed" ? 0 : 1),
+            inProgress:
+              current.analytics.taskStatusSummary.inProgress + (createdTask.status === "in_progress" ? 1 : 0),
+            completed: current.analytics.taskStatusSummary.completed + (createdTask.status === "completed" ? 1 : 0)
+          }
+        }
+      }));
+      setSelectedGeofenceId(payload.geofenceId);
+      setStatus("Supervisor task assigned successfully");
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    }
+  }
+
+  async function handleUploadTaskProof(taskId: string, stage: "before" | "after", file: File) {
+    try {
+      setError("");
+      setUploadingStageByTask((current) => ({ ...current, [taskId]: stage }));
+
+      const imageUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("Failed to read image file"));
+        reader.readAsDataURL(file);
+      });
+
+      const position = await new Promise<GeolocationPosition | null>((resolve) => {
+        if (!navigator.geolocation) {
+          resolve(null);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (value) => resolve(value),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      });
+
+      const result = await uploadTaskProof(taskId, {
+        imageUrl,
+        latitude: position?.coords.latitude ?? 0,
+        longitude: position?.coords.longitude ?? 0,
+        capturedAt: new Date().toISOString(),
+        stage,
+        metadata: {
+          filename: file.name,
+          mimeType: file.type
+        }
+      });
+
+      if (result.updatedTask) {
+        setTasks((current) => current.map((task) => (task.id === taskId ? result.updatedTask! : task)));
+      }
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    } finally {
+      setUploadingStageByTask((current) => ({ ...current, [taskId]: null }));
+    }
+  }
+
   function handleLogout() {
     logout()
       .catch(() => undefined)
       .finally(() => {
         localStorage.removeItem("civictrack_token");
+        localStorage.removeItem("civictrack_user");
         setUser(null);
         setTasks([]);
         setDashboard(fallbackDashboard);
@@ -632,9 +968,28 @@ export default function App() {
   return (
     <>
       {error ? <div className="banner error-banner">{error}</div> : null}
-      {route === "/worker" ? <WorkerView user={user} workerSummary={workerSummary} tasks={tasks} onLogout={handleLogout} /> : null}
+      {route === "/worker" ? (
+        <WorkerView
+          user={user}
+          workerSummary={workerSummary}
+          tasks={tasks}
+          onLogout={handleLogout}
+          onUploadProof={handleUploadTaskProof}
+          uploadingStageByTask={uploadingStageByTask}
+        />
+      ) : null}
       {route === "/supervisor" ? (
-        <SupervisorView user={user} dashboard={dashboard} tasks={tasks} status={status} onLogout={handleLogout} />
+        <SupervisorView
+          user={user}
+          dashboard={dashboard}
+          tasks={tasks}
+          status={status}
+          onLogout={handleLogout}
+          resources={supervisorResources}
+          selectedGeofenceId={selectedGeofenceId}
+          onSelectGeofence={setSelectedGeofenceId}
+          onCreateTask={handleCreateSupervisorTask}
+        />
       ) : null}
       {route === "/admin" ? <AdminView user={user} dashboard={dashboard} tasks={tasks} reports={reports} onLogout={handleLogout} /> : null}
     </>

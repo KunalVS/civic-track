@@ -16,20 +16,39 @@ interface GeofenceItem {
   radiusMeters: number;
 }
 
+interface TaskItem {
+  id: string;
+  title: string;
+  status: string;
+  geofenceId: string | null;
+  assignedWorkerName: string;
+}
+
 export function MapPanel({
   workers,
-  geofences
+  geofences,
+  tasks,
+  selectedGeofenceId
 }: {
   workers: WorkerLocation[];
   geofences: GeofenceItem[];
+  tasks?: TaskItem[];
+  selectedGeofenceId?: string | null;
 }) {
+  const selectedGeofence = geofences.find((geofence) => geofence.id === selectedGeofenceId);
+  const mapCenter =
+    selectedGeofence?.center ??
+    (workers[0] ? [workers[0].latitude, workers[0].longitude] : undefined) ??
+    geofences[0]?.center ??
+    ([15.9043, 73.8217] as [number, number]);
+
   return (
     <section className="panel map-panel">
       <div className="panel-header">
         <h2>Live Workforce Map</h2>
-        <span>Leaflet with geofences and worker markers</span>
+        <span>Leaflet with geofences and active worker markers around Sawantwadi</span>
       </div>
-      <MapContainer center={[28.6139, 77.209]} zoom={13} scrollWheelZoom className="map-frame">
+      <MapContainer key={`${mapCenter[0]}-${mapCenter[1]}-${selectedGeofenceId ?? "default"}`} center={mapCenter} zoom={14} scrollWheelZoom className="map-frame">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -43,7 +62,10 @@ export function MapPanel({
           >
             <Popup>
               <strong>{worker.name}</strong>
-              <div>{worker.status}</div>
+              <div>Status: {worker.status}</div>
+              <div>
+                Coordinates: {worker.latitude.toFixed(4)}, {worker.longitude.toFixed(4)}
+              </div>
               <div>Last seen: {new Date(worker.lastSeenAt).toLocaleTimeString()}</div>
             </Popup>
           </CircleMarker>
@@ -53,8 +75,19 @@ export function MapPanel({
             key={geofence.id}
             center={geofence.center}
             radius={geofence.radiusMeters}
-            pathOptions={{ color: "#0f766e", fillColor: "#14b8a6", fillOpacity: 0.15 }}
-          />
+            pathOptions={{
+              color: geofence.id === selectedGeofenceId ? "#f59e0b" : "#0f766e",
+              fillColor: geofence.id === selectedGeofenceId ? "#facc15" : "#14b8a6",
+              fillOpacity: geofence.id === selectedGeofenceId ? 0.25 : 0.15
+            }}
+          >
+            <Popup>
+              <strong>{geofence.name}</strong>
+              <div>
+                Tasks: {tasks?.filter((task) => task.geofenceId === geofence.id).length ?? 0}
+              </div>
+            </Popup>
+          </Circle>
         ))}
       </MapContainer>
     </section>

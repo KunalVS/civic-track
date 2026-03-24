@@ -178,6 +178,26 @@ export const taskProofs = pgTable("task_proofs", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });
 
+export const completedFieldTasks = pgTable(
+  "completed_field_tasks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    taskId: varchar("task_id", { length: 64 }).notNull(),
+    workerId: uuid("worker_id")
+      .notNull()
+      .references(() => users.id),
+    workerName: varchar("worker_name", { length: 160 }).notNull(),
+    taskName: varchar("task_name", { length: 160 }).notNull(),
+    beforeImageUrl: text("before_image_url").notNull(),
+    afterImageUrl: text("after_image_url").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    completedFieldTasksTaskUnique: uniqueIndex("completed_field_tasks_task_id_unique").on(table.taskId)
+  })
+);
+
 export const locationPings = pgTable("location_pings", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id),

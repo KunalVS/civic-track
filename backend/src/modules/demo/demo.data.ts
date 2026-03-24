@@ -11,7 +11,7 @@ export const demoGeofences = [
     id: "gf_ward12_depot",
     name: "Ward 12 Depot",
     wardId: demoWards[0].id,
-    center: [28.6142, 77.2089] as [number, number],
+    center: [15.9048, 73.8211] as [number, number],
     radiusMeters: 250,
     type: "radius" as const
   },
@@ -19,7 +19,7 @@ export const demoGeofences = [
     id: "gf_drainage_zone",
     name: "Drainage Inspection Corridor",
     wardId: demoWards[0].id,
-    center: [28.6116, 77.2145] as [number, number],
+    center: [15.9019, 73.8237] as [number, number],
     radiusMeters: 420,
     type: "radius" as const
   }
@@ -30,8 +30,8 @@ export const demoWorkers = [
     id: "00000000-0000-0000-0000-000000000001",
     name: "Demo Worker",
     role: "worker",
-    latitude: 28.6139,
-    longitude: 77.209,
+    latitude: 15.9043,
+    longitude: 73.8217,
     status: "moving",
     wardId: demoWards[0].id,
     lastSeenAt: new Date().toISOString()
@@ -40,8 +40,8 @@ export const demoWorkers = [
     id: "00000000-0000-0000-0000-000000000004",
     name: "Line Crew 14",
     role: "worker",
-    latitude: 28.6178,
-    longitude: 77.2068,
+    latitude: 15.9071,
+    longitude: 73.8192,
     status: "idle",
     wardId: demoWards[0].id,
     lastSeenAt: new Date(Date.now() - 12 * 60 * 1000).toISOString()
@@ -60,7 +60,9 @@ export const demoTasks = [
     assignedWorkerName: "Demo Worker",
     dueAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
     completedProofs: 1,
-    expectedPhotoCount: 2
+    expectedPhotoCount: 2,
+    beforeImageUrl: null,
+    afterImageUrl: null
   },
   {
     id: "task_2",
@@ -73,7 +75,9 @@ export const demoTasks = [
     assignedWorkerName: "Line Crew 14",
     dueAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
     completedProofs: 0,
-    expectedPhotoCount: 1
+    expectedPhotoCount: 2,
+    beforeImageUrl: null,
+    afterImageUrl: null
   }
 ];
 
@@ -86,7 +90,7 @@ export const demoAttendanceTrend = [
 ];
 
 export const demoHeatmap = [
-  { latitude: 28.6134, longitude: 77.2104, weight: 0.93 },
-  { latitude: 28.6148, longitude: 77.2081, weight: 0.74 },
-  { latitude: 28.6117, longitude: 77.2142, weight: 0.88 }
+  { latitude: 15.9041, longitude: 73.8215, weight: 0.93 },
+  { latitude: 15.9055, longitude: 73.8203, weight: 0.74 },
+  { latitude: 15.9027, longitude: 73.8234, weight: 0.88 }
 ];

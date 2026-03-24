@@ -36,6 +36,13 @@ export interface DashboardOverview {
       radiusMeters: number;
       wardId?: string;
     }>;
+    tasks: Array<{
+      id: string;
+      title: string;
+      status: string;
+      geofenceId: string | null;
+      assignedWorkerName: string;
+    }>;
   };
   analytics: {
     attendanceTrend: Array<{
@@ -46,6 +53,29 @@ export interface DashboardOverview {
     productivity: Array<{
       label: string;
       value: number;
+    }>;
+    attendanceLeaderboard: Array<{
+      workerId: string;
+      workerName: string;
+      daysPresent: number;
+      attendanceRate: number;
+      completedTasks: number;
+      rank: number;
+    }>;
+    taskStatusSummary: {
+      pending: number;
+      completed: number;
+      inProgress: number;
+    };
+    recentCompletedTasks: Array<{
+      id: string;
+      title: string;
+      status: string;
+      priority: string;
+      assignedWorkerName: string;
+      dueAt: string;
+      beforeImageUrl?: string | null;
+      afterImageUrl?: string | null;
     }>;
     heatmap: Array<{
       latitude: number;
@@ -65,6 +95,8 @@ export interface TaskListResponse {
     dueAt: string;
     completedProofs: number;
     expectedPhotoCount: number;
+    beforeImageUrl?: string | null;
+    afterImageUrl?: string | null;
   }>;
 }
 
@@ -144,7 +176,11 @@ export async function getCurrentUser(token?: string) {
 export async function getWorkerDashboard() {
   return requestJson<{
     user: AuthUser;
-    quickActions: string[];
+    attendance: {
+      checkedInToday: boolean;
+      presentDaysThisMonth: number;
+    };
+    status: "active" | "idle";
     taskSummary: { assigned: number };
   }>("/worker/dashboard");
 }
@@ -155,6 +191,104 @@ export async function getWorkerTasks() {
 
 export async function getSupervisorDashboard() {
   return requestJson<DashboardOverview>("/supervisor/dashboard");
+}
+
+export async function getSupervisorResources() {
+  return requestJson<{
+    workers: Array<{
+      id: string;
+      name: string;
+      status: string;
+      wardId: string;
+    }>;
+    geofences: Array<{
+      id: string;
+      name: string;
+      wardId: string;
+      center: [number, number];
+      radiusMeters: number;
+      type: "radius";
+    }>;
+  }>("/supervisor/resources");
+}
+
+export async function createSupervisorTask(payload: {
+  title: string;
+  description?: string;
+  geofenceId: string;
+  assignedTo: string;
+  dueAt?: string;
+  priority?: "low" | "medium" | "high" | "critical";
+}) {
+  return requestJson<{
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+    priority: string;
+    assignedWorkerName: string;
+    dueAt: string;
+    completedProofs: number;
+    expectedPhotoCount: number;
+    beforeImageUrl?: string | null;
+    afterImageUrl?: string | null;
+    geofenceId: string | null;
+  }>("/supervisor/tasks", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function uploadTaskProof(
+  taskId: string,
+  payload: {
+    imageUrl: string;
+    latitude: number;
+    longitude: number;
+    capturedAt: string;
+    stage: "before" | "after";
+    metadata?: Record<string, unknown>;
+  }
+) {
+  return requestJson<{
+    id: string;
+    taskId: string;
+    taskStatus: string;
+    stage: "before" | "after";
+    updatedTask?: TaskListResponse["items"][number];
+  }>(`/tasks/${taskId}/proofs`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function downloadSupervisorAttendancePdf(wardId?: string | null) {
+  const token = localStorage.getItem("civictrack_token") ?? "";
+  const url = new URL(`${window.location.origin}${API_BASE_URL}/dashboard/reports/attendance`);
+
+  url.searchParams.set("format", "pdf");
+  if (wardId) {
+    url.searchParams.set("wardId", wardId);
+  }
+
+  return fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }).then(async (response) => {
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(body?.message ?? "Failed to download attendance report");
+    }
+
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = "attendance-analytics-report.pdf";
+    anchor.click();
+    window.URL.revokeObjectURL(objectUrl);
+  });
 }
 
 export async function getSupervisorLiveTeam() {

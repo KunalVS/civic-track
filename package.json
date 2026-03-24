@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev:backend": "npm --workspace backend run dev",
+    "dev:backend:nowatch": "npm --workspace backend run dev:nowatch",
     "dev:frontend": "npm --workspace frontend run dev",
     "build": "npm run build --workspace backend && npm run build --workspace frontend",
     "lint": "npm run lint --workspace backend && npm run lint --workspace frontend"

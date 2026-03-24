@@ -153,6 +153,18 @@ CREATE TABLE IF NOT EXISTS task_proofs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS completed_field_tasks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  task_id VARCHAR(64) NOT NULL UNIQUE,
+  worker_id UUID NOT NULL REFERENCES users(id),
+  worker_name VARCHAR(160) NOT NULL,
+  task_name VARCHAR(160) NOT NULL,
+  before_image_url TEXT NOT NULL,
+  after_image_url TEXT NOT NULL,
+  completed_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS location_pings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id),
@@ -186,6 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_created ON auth_sessions (user
 CREATE INDEX IF NOT EXISTS idx_attendance_user_captured ON attendance_logs (user_id, captured_at DESC);
 CREATE INDEX IF NOT EXISTS idx_location_pings_user_captured ON location_pings (user_id, captured_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_assigned_to ON tasks (status, assigned_to);
+CREATE INDEX IF NOT EXISTS idx_completed_field_tasks_worker_completed ON completed_field_tasks (worker_id, completed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_geofences_center_geog ON geofences USING GIST (center_geog);
 CREATE INDEX IF NOT EXISTS idx_geofences_polygon_geom ON geofences USING GIST (polygon_geom);
 CREATE INDEX IF NOT EXISTS idx_attendance_location_geog ON attendance_logs USING GIST (location_geog);

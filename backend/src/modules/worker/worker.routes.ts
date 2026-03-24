@@ -7,11 +7,17 @@ const router = Router();
 router.use(requireRole(["worker"]));
 
 router.get("/dashboard", (req, res) => {
+  const assignedTasks = listTasks({ assignedTo: req.user!.id });
+
   res.json({
     user: req.user,
-    quickActions: ["check_in", "check_out", "upload_proof"],
+    attendance: {
+      checkedInToday: true,
+      presentDaysThisMonth: 24
+    },
+    status: assignedTasks.length > 0 ? "active" : "idle",
     taskSummary: {
-      assigned: listTasks({ assignedTo: req.user!.id }).length
+      assigned: assignedTasks.length
     }
   });
 });

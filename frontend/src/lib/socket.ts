@@ -5,5 +5,12 @@ const socketBaseUrl =
 
 export const socket = io(socketBaseUrl, {
   autoConnect: false,
-  path: "/socket.io"
+  path: "/socket.io",
+  transports: ["websocket"],
+  reconnection: false,
+  timeout: 4000
+});
+
+socket.on("connect_error", () => {
+  socket.disconnect();
 });

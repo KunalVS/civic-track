@@ -7,8 +7,12 @@ const router = Router();
 
 router.use(requireRole(["admin"]));
 
-router.get("/dashboard", (_req, res) => {
-  res.json(getDashboardOverview());
+router.get("/dashboard", async (_req, res, next) => {
+  try {
+    res.json(await getDashboardOverview());
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/tasks", (_req, res) => {
