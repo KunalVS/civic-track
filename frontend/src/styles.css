@@ -1,0 +1,267 @@
+:root {
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  color: #e6f2ef;
+  background:
+    radial-gradient(circle at top left, rgba(18, 84, 79, 0.55), transparent 30%),
+    linear-gradient(135deg, #071b1f 0%, #0f2f35 45%, #133e44 100%);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid rgba(157, 231, 219, 0.2);
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  background: rgba(6, 37, 43, 0.85);
+  color: #e6f2ef;
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: #06252b;
+  background: #9de7db;
+  cursor: pointer;
+}
+
+.app-shell {
+  padding: 2rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.auth-card {
+  width: min(100%, 34rem);
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 0.4rem;
+  color: #bfe3dd;
+}
+
+.helper-text {
+  color: #8ebdb5;
+}
+
+.link-button {
+  padding: 0;
+  color: #9de7db;
+  background: transparent;
+  border-radius: 0;
+  text-align: left;
+}
+
+.banner {
+  margin: 1rem auto 0;
+  width: min(100% - 2rem, 72rem);
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+}
+
+.error-banner {
+  color: #ffe8e6;
+  background: rgba(120, 26, 26, 0.72);
+  border: 1px solid rgba(255, 190, 181, 0.25);
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #95d5cc;
+  font-size: 0.75rem;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1;
+}
+
+.hero-copy {
+  max-width: 54rem;
+  color: #bfe3dd;
+}
+
+.status-card,
+.panel,
+.kpi-card {
+  border: 1px solid rgba(157, 231, 219, 0.15);
+  background: rgba(3, 21, 24, 0.55);
+  backdrop-filter: blur(16px);
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.status-card {
+  min-width: 18rem;
+  padding: 1.25rem;
+  display: grid;
+}
+
+.status-card span {
+  color: #8ebdb5;
+}
+
+.status-card strong {
+  font-size: 1.1rem;
+}
+
+.status-card small,
+.filter-label {
+  color: #8ebdb5;
+}
+
+.filter-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.filter-strip strong,
+.filter-strip span {
+  display: block;
+}
+
+.filter-strip strong {
+  word-break: break-word;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.kpi-card {
+  padding: 1.25rem;
+}
+
+.kpi-card span {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #8ebdb5;
+}
+
+.kpi-card strong {
+  font-size: 2rem;
+}
+
+.layout-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 1rem;
+}
+
+.panel {
+  padding: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.panel-header h2 {
+  margin: 0;
+}
+
+.panel-header span {
+  color: #8ebdb5;
+  font-size: 0.9rem;
+}
+
+.map-frame {
+  height: 420px;
+  border-radius: 1rem;
+}
+
+.analytics-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.analytics-list article {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(157, 231, 219, 0.08);
+}
+
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.task-table th,
+.task-table td {
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid rgba(157, 231, 219, 0.12);
+  text-align: left;
+}
+
+@media (max-width: 960px) {
+  .hero,
+  .layout-grid,
+  .filter-strip {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 1rem;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .banner {
+    width: calc(100% - 2rem);
+  }
+}
