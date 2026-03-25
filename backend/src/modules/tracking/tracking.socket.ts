@@ -26,6 +26,7 @@ interface WorkerRouteAnomalyState {
 const latestWorkerLocations = new Map<string, TrackingSnapshot>();
 const workerRouteHistory = new Map<string, TrackingPayload[]>();
 const workerRouteAnomalies = new Map<string, WorkerRouteAnomalyState>();
+const activeWorkerConnections = new Map<string, number>();
 let ioServer: Server | null = null;
 
 function keepPreviousHour(route: TrackingPayload[]) {
@@ -49,10 +50,16 @@ export function registerTrackingNamespace(io: Server) {
     socket.on("presence:join", (payload: { userId?: string; role?: string }) => {
       if (payload.userId) {
         socket.join(`user:${payload.userId}`);
+        socket.data.userId = payload.userId;
       }
 
       if (payload.role) {
         socket.join(`role:${payload.role}`);
+        socket.data.role = payload.role;
+      }
+
+      if (payload.userId && payload.role === "worker") {
+        activeWorkerConnections.set(payload.userId, (activeWorkerConnections.get(payload.userId) ?? 0) + 1);
       }
     });
 
@@ -97,6 +104,27 @@ export function registerTrackingNamespace(io: Server) {
 
     socket.emit("tracking:config", {
       recommendedIntervalSeconds: env.TRACKING_MIN_INTERVAL_SECONDS
+    });
+
+    socket.on("disconnect", () => {
+      const userId = typeof socket.data.userId === "string" ? socket.data.userId : undefined;
+      const role = typeof socket.data.role === "string" ? socket.data.role : undefined;
+
+      if (!userId || role !== "worker") {
+        return;
+      }
+
+      const nextCount = (activeWorkerConnections.get(userId) ?? 1) - 1;
+
+      if (nextCount <= 0) {
+        activeWorkerConnections.delete(userId);
+        latestWorkerLocations.delete(userId);
+        workerRouteHistory.delete(userId);
+        workerRouteAnomalies.delete(userId);
+        return;
+      }
+
+      activeWorkerConnections.set(userId, nextCount);
     });
   });
 }

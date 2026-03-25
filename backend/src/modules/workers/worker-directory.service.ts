@@ -7,15 +7,6 @@ interface WorkerDirectoryFilters {
   wardId?: string;
 }
 
-const wardFallbackCenter: Record<string, [number, number]> = {
-  "11111111-1111-1111-1111-111111111111": [15.9043, 73.8217]
-};
-
-function buildFallbackCoordinates(wardId: string | null | undefined, index: number): [number, number] {
-  const [baseLat, baseLng] = wardFallbackCenter[wardId ?? ""] ?? [15.9043, 73.8217];
-  return [baseLat + index * 0.0016, baseLng + index * 0.0011];
-}
-
 export async function getWorkerDirectory(filters: WorkerDirectoryFilters = {}) {
   return db
     .select({
@@ -38,30 +29,36 @@ export async function getWorkerDirectory(filters: WorkerDirectoryFilters = {}) {
 export async function getSupervisorMapWorkers(filters: WorkerDirectoryFilters = {}) {
   const directory = await getWorkerDirectory(filters);
   const liveLocations = getLatestWorkerLocations();
+  const directoryById = new Map(directory.map((worker) => [worker.id, worker]));
 
-  return directory.map((worker, index) => {
-    const live = liveLocations.find((item) => item.userId === worker.id);
-    const anomaly = getWorkerRouteAnomaly(worker.id);
-    const [fallbackLat, fallbackLng] = buildFallbackCoordinates(worker.wardId, index);
+  return liveLocations
+    .map((live) => {
+      const worker = directoryById.get(live.userId);
+      if (!worker) {
+        return null;
+      }
 
-    return {
-      id: worker.id,
-      name: worker.name,
-      role: "worker",
-      latitude: live?.latitude ?? fallbackLat,
-      longitude: live?.longitude ?? fallbackLng,
-      status: live ? "moving" : "idle",
-      anomalyDetected: anomaly.latestPointIsAnomalous,
-      anomalyReasons: anomaly.latestPointIsAnomalous
-        ? anomaly.reason
-            .split(".")
-            .map((item) => item.trim())
-            .filter(Boolean)
-        : [],
-      wardId: worker.wardId ?? undefined,
-      lastSeenAt: live?.capturedAt ?? new Date(Date.now() - index * 5 * 60 * 1000).toISOString()
-    };
-  });
+      const anomaly = getWorkerRouteAnomaly(worker.id);
+
+      return {
+        id: worker.id,
+        name: worker.name,
+        role: "worker",
+        latitude: live.latitude,
+        longitude: live.longitude,
+        status: "moving",
+        anomalyDetected: anomaly.latestPointIsAnomalous,
+        anomalyReasons: anomaly.latestPointIsAnomalous
+          ? anomaly.reason
+              .split(".")
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : [],
+        wardId: worker.wardId ?? undefined,
+        lastSeenAt: live.capturedAt
+      };
+    })
+    .filter((worker): worker is NonNullable<typeof worker> => worker !== null);
 }
 
 export async function getAttendanceLeaderboard(filters: WorkerDirectoryFilters = {}) {
