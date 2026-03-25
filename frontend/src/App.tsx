@@ -999,13 +999,14 @@ export default function App() {
         localStorage.removeItem("civictrack_token");
         localStorage.removeItem("civictrack_user");
         setUser(null);
+        setRoute("/");
         setTasks([]);
         setDashboard(fallbackDashboard);
         setWorkerSummary(null);
         setReports(null);
         setAuthHint("");
         setStatus("Awaiting authentication");
-        navigate("/");
+        window.location.replace("/");
       });
   }
 
