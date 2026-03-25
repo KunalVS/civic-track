@@ -6,11 +6,9 @@ const socketBaseUrl =
 export const socket = io(socketBaseUrl, {
   autoConnect: false,
   path: "/socket.io",
-  transports: ["websocket"],
-  reconnection: false,
-  timeout: 4000
-});
-
-socket.on("connect_error", () => {
-  socket.disconnect();
+  reconnection: true,
+  reconnectionAttempts: 20,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 8000,
+  timeout: 10000
 });

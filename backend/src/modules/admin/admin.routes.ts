@@ -15,8 +15,12 @@ router.get("/dashboard", async (_req, res, next) => {
   }
 });
 
-router.get("/tasks", (_req, res) => {
-  res.json({ items: listTasks() });
+router.get("/tasks", async (_req, res, next) => {
+  try {
+    res.json({ items: await listTasks() });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/reports", (_req, res) => {

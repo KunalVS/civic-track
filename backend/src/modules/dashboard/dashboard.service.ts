@@ -1,8 +1,9 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { completedFieldTasks, users } from "../../db/schema.js";
-import { getAttendanceTrend, getGeofences, getHeatmap, getTasks } from "../demo/demo.store.js";
+import { getAttendanceTrend, getGeofences, getHeatmap } from "../demo/demo.store.js";
 import { getLatestWorkerLocations } from "../tracking/tracking.socket.js";
+import { listTasks } from "../tasks/tasks.service.js";
 import { getAttendanceLeaderboard, getSupervisorMapWorkers } from "../workers/worker-directory.service.js";
 
 export interface DashboardFilters {
@@ -15,7 +16,7 @@ export async function getDashboardOverview(filters: DashboardFilters = {}) {
     (worker) => !filters.workerId || worker.id === filters.workerId
   );
 
-  const tasks = getTasks().filter((task) => !filters.workerId || task.assignedTo === filters.workerId);
+  const tasks = await listTasks(filters.workerId ? { assignedTo: filters.workerId } : {});
   const completedToday = tasks.filter((task) => task.status === "completed").length;
   const pendingTasks = tasks.filter((task) => task.status !== "completed").length;
   const activeWorkers = workers.length;

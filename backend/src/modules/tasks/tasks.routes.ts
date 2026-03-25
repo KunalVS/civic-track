@@ -15,15 +15,19 @@ const optionalDateTime = z
   .transform((value) => new Date(value).toISOString())
   .optional();
 
-router.get("/", (req, res) => {
-  const query = {
-    status: typeof req.query.status === "string" ? req.query.status : undefined,
-    assignedTo: typeof req.query.assignedTo === "string" ? req.query.assignedTo : undefined
-  };
+router.get("/", async (req, res, next) => {
+  try {
+    const query = {
+      status: typeof req.query.status === "string" ? req.query.status : undefined,
+      assignedTo: typeof req.query.assignedTo === "string" ? req.query.assignedTo : undefined
+    };
 
-  res.json({
-    items: listTasks(query)
-  });
+    res.json({
+      items: await listTasks(query)
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/", requireRole(["supervisor", "admin"]), async (req, res, next) => {
@@ -45,7 +49,7 @@ router.post("/", requireRole(["supervisor", "admin"]), async (req, res, next) =>
       diff: body
     });
 
-    res.status(201).json(await createTask(body, req.user!.role));
+    res.status(201).json(await createTask(body, req.user!.role, req.user!.id));
   } catch (error) {
     next(error);
   }

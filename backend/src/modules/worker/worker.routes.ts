@@ -6,26 +6,34 @@ const router = Router();
 
 router.use(requireRole(["worker"]));
 
-router.get("/dashboard", (req, res) => {
-  const assignedTasks = listTasks({ assignedTo: req.user!.id });
+router.get("/dashboard", async (req, res, next) => {
+  try {
+    const assignedTasks = await listTasks({ assignedTo: req.user!.id });
 
-  res.json({
-    user: req.user,
-    attendance: {
-      checkedInToday: true,
-      presentDaysThisMonth: 24
-    },
-    status: assignedTasks.length > 0 ? "active" : "idle",
-    taskSummary: {
-      assigned: assignedTasks.length
-    }
-  });
+    res.json({
+      user: req.user,
+      attendance: {
+        checkedInToday: true,
+        presentDaysThisMonth: 24
+      },
+      status: assignedTasks.length > 0 ? "active" : "idle",
+      taskSummary: {
+        assigned: assignedTasks.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.get("/tasks", (req, res) => {
-  res.json({
-    items: listTasks({ assignedTo: req.user!.id })
-  });
+router.get("/tasks", async (req, res, next) => {
+  try {
+    res.json({
+      items: await listTasks({ assignedTo: req.user!.id })
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/attendance", (_req, res) => {

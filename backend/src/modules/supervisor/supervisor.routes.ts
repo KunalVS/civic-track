@@ -27,8 +27,12 @@ router.get("/dashboard", async (req, res, next) => {
   }
 });
 
-router.get("/tasks", (_req, res) => {
-  res.json({ items: listTasks() });
+router.get("/tasks", async (_req, res, next) => {
+  try {
+    res.json({ items: await listTasks() });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/resources", async (req, res, next) => {
@@ -56,7 +60,7 @@ router.post("/tasks", async (req, res, next) => {
       })
       .parse(req.body);
 
-    const task = await createTask(body, "supervisor");
+    const task = await createTask(body, "supervisor", req.user!.id);
     emitTaskAssigned(task);
 
     await writeAuditLog(req, {
