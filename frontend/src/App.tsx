@@ -27,6 +27,7 @@ import {
 import { socket } from "./lib/socket";
 
 type RoutePath = "/login" | "/signup" | "/worker" | "/supervisor" | "/admin";
+type PublicRoutePath = "/" | RoutePath;
 
 interface TrackingUpdate {
   userId: string;
@@ -95,9 +96,9 @@ const fallbackDashboard: DashboardOverview = {
 
 const fallbackTasks: TaskItem[] = [];
 
-function getInitialRoute(): RoutePath {
-  const path = window.location.pathname as RoutePath;
-  return ["/login", "/signup", "/worker", "/supervisor", "/admin"].includes(path) ? path : "/login";
+function getInitialRoute(): PublicRoutePath {
+  const path = window.location.pathname as PublicRoutePath;
+  return ["/", "/login", "/signup", "/worker", "/supervisor", "/admin"].includes(path) ? path : "/";
 }
 
 function routeForRole(role: Role): RoutePath {
@@ -112,7 +113,7 @@ function routeForRole(role: Role): RoutePath {
   return "/admin";
 }
 
-function navigate(path: RoutePath) {
+function navigate(path: PublicRoutePath) {
   window.history.pushState({}, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
@@ -148,6 +149,63 @@ function AuthCard({
       </div>
       {children}
     </section>
+  );
+}
+
+function HomeView() {
+  return (
+    <main className="home-shell">
+      <section className="home-hero panel">
+        <div className="home-hero-copy">
+          <p className="eyebrow">Municipal Workforce Intelligence</p>
+          <h1>CivicTrack</h1>
+          <p className="home-lead">
+            GPS-based attendance, live field tracking, supervisor task assignment, geo-tagged work proof, and analytics for
+            municipal operations teams.
+          </p>
+          <div className="home-actions">
+            <button type="button" onClick={() => navigate("/login")}>
+              Login
+            </button>
+            <button type="button" className="secondary-button" onClick={() => navigate("/signup")}>
+              Sign up
+            </button>
+          </div>
+        </div>
+        <div className="home-stat-grid">
+          <article className="home-stat-card">
+            <span>Attendance</span>
+            <strong>Geo-validated</strong>
+            <p>Check-in and check-out with location verification and geofence awareness.</p>
+          </article>
+          <article className="home-stat-card">
+            <span>Field Tasks</span>
+            <strong>Supervisor-led</strong>
+            <p>Assign zone tasks, track status live, and review before/after site proof.</p>
+          </article>
+          <article className="home-stat-card">
+            <span>Monitoring</span>
+            <strong>Real-time map</strong>
+            <p>See worker movement, task zones, and operational updates on the dashboard map.</p>
+          </article>
+        </div>
+      </section>
+
+      <section className="home-feature-grid">
+        <article className="panel home-feature-card">
+          <h2>What Workers Use</h2>
+          <p>Receive assigned tasks, share live location, upload before/after work images, and track attendance status.</p>
+        </article>
+        <article className="panel home-feature-card">
+          <h2>What Supervisors Use</h2>
+          <p>Create tasks by zone, assign workers, monitor live movement, and review task completion through the control center.</p>
+        </article>
+        <article className="panel home-feature-card">
+          <h2>What Admins Use</h2>
+          <p>View city-wide operational KPIs, attendance trends, reporting, and governance-level dashboard controls.</p>
+        </article>
+      </section>
+    </main>
   );
 }
 
@@ -524,7 +582,7 @@ function AdminView({
 }
 
 export default function App() {
-  const [route, setRoute] = useState<RoutePath>(getInitialRoute());
+  const [route, setRoute] = useState<PublicRoutePath>(getInitialRoute());
   const [user, setUser] = useState<AuthUser | null>(null);
   const [dashboard, setDashboard] = useState<DashboardOverview>(fallbackDashboard);
   const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks);
@@ -956,6 +1014,15 @@ export default function App() {
       <>
         {error ? <div className="banner error-banner">{error}</div> : null}
         <SignupView loading={loading} onSignup={handleSignup} />
+      </>
+    );
+  }
+
+  if (!user && route === "/") {
+    return (
+      <>
+        {error ? <div className="banner error-banner">{error}</div> : null}
+        <HomeView />
       </>
     );
   }

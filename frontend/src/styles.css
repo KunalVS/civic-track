@@ -40,10 +40,100 @@ button {
   cursor: pointer;
 }
 
+button.secondary-button {
+  color: #9de7db;
+  background: rgba(157, 231, 219, 0.08);
+  border: 1px solid rgba(157, 231, 219, 0.18);
+}
+
 .app-shell {
   padding: 2rem;
   display: grid;
   gap: 1.5rem;
+}
+
+.home-shell {
+  min-height: 100vh;
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.home-hero {
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.home-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 1rem;
+}
+
+.home-hero-copy h1 {
+  margin: 0;
+  font-size: clamp(2.75rem, 8vw, 5rem);
+  line-height: 0.95;
+}
+
+.home-lead {
+  margin: 0;
+  max-width: 42rem;
+  color: #bfe3dd;
+  font-size: 1.05rem;
+}
+
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.home-stat-grid,
+.home-feature-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.home-stat-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.home-stat-card,
+.home-feature-card {
+  padding: 1.1rem;
+  border-radius: 1rem;
+  background: rgba(157, 231, 219, 0.08);
+  border: 1px solid rgba(157, 231, 219, 0.08);
+}
+
+.home-stat-card span {
+  color: #8ebdb5;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.home-stat-card strong {
+  display: block;
+  font-size: 1.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.home-stat-card p,
+.home-feature-card p {
+  margin: 0;
+  color: #bfe3dd;
+}
+
+.home-feature-card h2 {
+  margin-top: 0;
+}
+
+.home-feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .auth-shell {
@@ -199,6 +289,7 @@ button {
   justify-content: space-between;
   gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
@@ -462,6 +553,11 @@ button {
   border-collapse: collapse;
 }
 
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .task-table th,
 .task-table td {
   padding: 0.85rem 0.75rem;
@@ -522,6 +618,11 @@ button {
     display: grid;
   }
 
+  .home-hero,
+  .home-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -537,11 +638,40 @@ button {
     padding: 1rem;
   }
 
+  .home-shell {
+    padding: 0.9rem;
+  }
+
+  .home-hero {
+    padding: 1rem;
+  }
+
+  .status-card {
+    min-width: 0;
+  }
+
+  .hero {
+    gap: 0.75rem;
+  }
+
+  .panel,
+  .kpi-card {
+    padding: 0.9rem;
+  }
+
   .kpi-grid {
     grid-template-columns: 1fr;
   }
 
   .banner {
     width: calc(100% - 2rem);
+  }
+
+  .task-table {
+    min-width: 760px;
+  }
+
+  .map-frame {
+    min-height: 320px;
   }
 }

@@ -96,60 +96,62 @@ export function TaskTable({
           Export CSV
         </button>
       </div>
-      <table className="task-table">
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Status</th>
-            <th>Priority</th>
-            <th>Assigned</th>
-            {onUploadProof ? <th>Before</th> : null}
-            {onUploadProof ? <th>After</th> : null}
-            <th>Due</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((task) => (
-            <tr key={task.id}>
-              <td>{task.title}</td>
-              <td><span className={`status-pill status-${task.status}`}>{task.status}</span></td>
-              <td>{task.priority}</td>
-              <td>{task.assignedWorkerName}</td>
-              {onUploadProof ? (
-                <td>
-                  <label className="upload-chip">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => void handleFileSelection(task.id, "before", event.target.files)}
-                      disabled={Boolean(uploadingStageByTask?.[task.id])}
-                    />
-                    <span>
-                      {task.beforeImageUrl ? "Uploaded" : uploadingStageByTask?.[task.id] === "before" ? "Uploading..." : "Upload"}
-                    </span>
-                  </label>
-                </td>
-              ) : null}
-              {onUploadProof ? (
-                <td>
-                  <label className="upload-chip">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => void handleFileSelection(task.id, "after", event.target.files)}
-                      disabled={Boolean(uploadingStageByTask?.[task.id])}
-                    />
-                    <span>
-                      {task.afterImageUrl ? "Uploaded" : uploadingStageByTask?.[task.id] === "after" ? "Uploading..." : "Upload"}
-                    </span>
-                  </label>
-                </td>
-              ) : null}
-              <td>{formatDue(task.dueAt)}</td>
+      <div className="table-scroll">
+        <table className="task-table">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Assigned</th>
+              {onUploadProof ? <th>Before</th> : null}
+              {onUploadProof ? <th>After</th> : null}
+              <th>Due</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <tr key={task.id}>
+                <td>{task.title}</td>
+                <td><span className={`status-pill status-${task.status}`}>{task.status}</span></td>
+                <td>{task.priority}</td>
+                <td>{task.assignedWorkerName}</td>
+                {onUploadProof ? (
+                  <td>
+                    <label className="upload-chip">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => void handleFileSelection(task.id, "before", event.target.files)}
+                        disabled={Boolean(uploadingStageByTask?.[task.id])}
+                      />
+                      <span>
+                        {task.beforeImageUrl ? "Uploaded" : uploadingStageByTask?.[task.id] === "before" ? "Uploading..." : "Upload"}
+                      </span>
+                    </label>
+                  </td>
+                ) : null}
+                {onUploadProof ? (
+                  <td>
+                    <label className="upload-chip">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => void handleFileSelection(task.id, "after", event.target.files)}
+                        disabled={Boolean(uploadingStageByTask?.[task.id])}
+                      />
+                      <span>
+                        {task.afterImageUrl ? "Uploaded" : uploadingStageByTask?.[task.id] === "after" ? "Uploading..." : "Upload"}
+                      </span>
+                    </label>
+                  </td>
+                ) : null}
+                <td>{formatDue(task.dueAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
