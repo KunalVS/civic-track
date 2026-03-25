@@ -243,10 +243,6 @@ function HomeView() {
           <h2>What Supervisors Use</h2>
           <p>Create tasks by zone, assign workers, monitor live movement, and review task completion through the control center.</p>
         </article>
-        <article className="panel home-feature-card">
-          <h2>What Admins Use</h2>
-          <p>View city-wide operational KPIs, attendance trends, reporting, and governance-level dashboard controls.</p>
-        </article>
       </section>
     </main>
   );
