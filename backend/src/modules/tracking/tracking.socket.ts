@@ -1,5 +1,6 @@
 import type { Server } from "socket.io";
 import { env } from "../../config/env.js";
+import { detectWorkerRouteAnomaly } from "./anomaly.service.js";
 import type { TaskRecord } from "../demo/demo.store.js";
 
 interface TrackingPayload {
@@ -11,8 +12,35 @@ interface TrackingPayload {
   capturedAt: string;
 }
 
-const latestWorkerLocations = new Map<string, TrackingPayload>();
+interface TrackingSnapshot extends TrackingPayload {
+  anomalyDetected?: boolean;
+  anomalyReasons?: string[];
+}
+
+interface WorkerRouteAnomalyState {
+  latestPointIsAnomalous: boolean;
+  reason: string;
+  anomaliesIndices: number[];
+}
+
+const latestWorkerLocations = new Map<string, TrackingSnapshot>();
+const workerRouteHistory = new Map<string, TrackingPayload[]>();
+const workerRouteAnomalies = new Map<string, WorkerRouteAnomalyState>();
 let ioServer: Server | null = null;
+
+function keepPreviousHour(route: TrackingPayload[]) {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  return route.filter((point) => new Date(point.capturedAt).getTime() >= oneHourAgo);
+}
+
+function updateWorkerRoute(payload: TrackingPayload) {
+  const currentRoute = workerRouteHistory.get(payload.userId) ?? [];
+  const nextRoute = keepPreviousHour([...currentRoute, payload]).sort(
+    (left, right) => new Date(left.capturedAt).getTime() - new Date(right.capturedAt).getTime()
+  );
+  workerRouteHistory.set(payload.userId, nextRoute);
+  return nextRoute;
+}
 
 export function registerTrackingNamespace(io: Server) {
   ioServer = io;
@@ -28,11 +56,41 @@ export function registerTrackingNamespace(io: Server) {
       }
     });
 
-    socket.on("tracking:ping", (payload: TrackingPayload) => {
-      latestWorkerLocations.set(payload.userId, payload);
+    socket.on("tracking:ping", async (payload: TrackingPayload) => {
+      const route = updateWorkerRoute(payload);
+      const anomalySummary = await detectWorkerRouteAnomaly({
+        workerId: payload.userId,
+        route: route.map((point) => ({
+          lat: point.latitude,
+          lng: point.longitude,
+          timestamp: point.capturedAt
+        }))
+      });
+      const latestPointIndex = route.length - 1;
+      const latestPointIsAnomalous = anomalySummary.anomaliesIndices.includes(latestPointIndex);
+      const anomalyReasons = latestPointIsAnomalous
+        ? anomalySummary.reason
+            .split(".")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [];
+
+      workerRouteAnomalies.set(payload.userId, {
+        latestPointIsAnomalous,
+        reason: anomalySummary.reason,
+        anomaliesIndices: anomalySummary.anomaliesIndices
+      });
+
+      latestWorkerLocations.set(payload.userId, {
+        ...payload,
+        anomalyDetected: latestPointIsAnomalous,
+        anomalyReasons
+      });
 
       socket.broadcast.emit("tracking:update", {
         ...payload,
+        anomalyDetected: latestPointIsAnomalous,
+        anomalyReasons,
         serverReceivedAt: new Date().toISOString()
       });
     });
@@ -45,6 +103,16 @@ export function registerTrackingNamespace(io: Server) {
 
 export function getLatestWorkerLocations() {
   return Array.from(latestWorkerLocations.values());
+}
+
+export function getWorkerRouteAnomaly(userId: string) {
+  return (
+    workerRouteAnomalies.get(userId) ?? {
+      latestPointIsAnomalous: false,
+      reason: "Route is within expected behavior.",
+      anomaliesIndices: []
+    }
+  );
 }
 
 export function emitTaskAssigned(task: TaskRecord) {

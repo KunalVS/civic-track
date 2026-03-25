@@ -26,6 +26,8 @@ export interface DashboardOverview {
       latitude: number;
       longitude: number;
       status: string;
+      anomalyDetected?: boolean;
+      anomalyReasons?: string[];
       lastSeenAt: string;
       wardId?: string;
     }>;

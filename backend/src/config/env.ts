@@ -49,6 +49,7 @@ const envSchema = z.object({
   SOCKET_PING_INTERVAL_MS: z.coerce.number().default(30000),
   ATTENDANCE_MAX_DRIFT_METERS: z.coerce.number().default(250),
   TRACKING_MIN_INTERVAL_SECONDS: z.coerce.number().default(120),
+  ANOMALY_DETECTION_URL: z.string().url().default("http://127.0.0.1:5001/detect"),
   MOCK_AADHAAR_BASE_URL: z.string().min(1),
   SMS_PROVIDER_URL: optionalUrl,
   SMS_PROVIDER_API_KEY: optionalString,

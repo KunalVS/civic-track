@@ -33,6 +33,8 @@ interface TrackingUpdate {
   latitude: number;
   longitude: number;
   capturedAt: string;
+  anomalyDetected?: boolean;
+  anomalyReasons?: string[];
 }
 
 interface TaskAssignedUpdate {
@@ -669,7 +671,9 @@ export default function App() {
                   latitude: payload.latitude,
                   longitude: payload.longitude,
                   lastSeenAt: payload.capturedAt,
-                  status: "moving"
+                  status: "moving",
+                  anomalyDetected: payload.anomalyDetected,
+                  anomalyReasons: payload.anomalyReasons ?? []
                 }
               : worker
           )

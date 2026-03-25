@@ -6,6 +6,8 @@ interface WorkerLocation {
   latitude: number;
   longitude: number;
   status: string;
+  anomalyDetected?: boolean;
+  anomalyReasons?: string[];
   lastSeenAt: string;
 }
 
@@ -58,11 +60,17 @@ export function MapPanel({
             key={worker.id}
             center={[worker.latitude, worker.longitude]}
             radius={10}
-            pathOptions={{ color: "#f8fafc", fillColor: "#22d3ee", fillOpacity: 0.9 }}
+            pathOptions={{
+              color: "#f8fafc",
+              fillColor: worker.anomalyDetected ? "#ef4444" : "#22d3ee",
+              fillOpacity: 0.9
+            }}
           >
             <Popup>
               <strong>{worker.name}</strong>
               <div>Status: {worker.status}</div>
+              <div>Route anomaly: {worker.anomalyDetected ? "Detected" : "Normal"}</div>
+              {worker.anomalyReasons?.length ? <div>Reason: {worker.anomalyReasons.join(" ")}</div> : null}
               <div>
                 Coordinates: {worker.latitude.toFixed(4)}, {worker.longitude.toFixed(4)}
               </div>

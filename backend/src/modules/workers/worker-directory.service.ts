@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { attendanceLogs, users, workers } from "../../db/schema.js";
-import { getLatestWorkerLocations } from "../tracking/tracking.socket.js";
+import { getLatestWorkerLocations, getWorkerRouteAnomaly } from "../tracking/tracking.socket.js";
 
 interface WorkerDirectoryFilters {
   wardId?: string;
@@ -41,6 +41,7 @@ export async function getSupervisorMapWorkers(filters: WorkerDirectoryFilters = 
 
   return directory.map((worker, index) => {
     const live = liveLocations.find((item) => item.userId === worker.id);
+    const anomaly = getWorkerRouteAnomaly(worker.id);
     const [fallbackLat, fallbackLng] = buildFallbackCoordinates(worker.wardId, index);
 
     return {
@@ -50,6 +51,13 @@ export async function getSupervisorMapWorkers(filters: WorkerDirectoryFilters = 
       latitude: live?.latitude ?? fallbackLat,
       longitude: live?.longitude ?? fallbackLng,
       status: live ? "moving" : "idle",
+      anomalyDetected: anomaly.latestPointIsAnomalous,
+      anomalyReasons: anomaly.latestPointIsAnomalous
+        ? anomaly.reason
+            .split(".")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [],
       wardId: worker.wardId ?? undefined,
       lastSeenAt: live?.capturedAt ?? new Date(Date.now() - index * 5 * 60 * 1000).toISOString()
     };
