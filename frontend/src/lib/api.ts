@@ -267,7 +267,8 @@ export async function uploadTaskProof(
     capturedAt: string;
     stage: "before" | "after";
     metadata?: Record<string, unknown>;
-  }
+  },
+  token?: string | null
 ) {
   return requestJson<{
     id: string;
@@ -277,6 +278,7 @@ export async function uploadTaskProof(
     updatedTask?: TaskListResponse["items"][number];
   }>(`/tasks/${taskId}/proofs`, {
     method: "POST",
+    token,
     body: JSON.stringify(payload)
   });
 }

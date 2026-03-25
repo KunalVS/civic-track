@@ -624,6 +624,7 @@ function AdminView({
 export default function App() {
   const [route, setRoute] = useState<PublicRoutePath>(getInitialRoute());
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [dashboard, setDashboard] = useState<DashboardOverview>(fallbackDashboard);
   const [tasks, setTasks] = useState<TaskItem[]>(fallbackTasks);
   const [workerSummary, setWorkerSummary] = useState<{
@@ -664,6 +665,8 @@ export default function App() {
     if (!token) {
       return;
     }
+
+    setAuthToken(token);
 
     const cachedUser = readCachedUser();
     if (cachedUser) {
@@ -1012,6 +1015,7 @@ export default function App() {
       const result = await login({ email, password });
       localStorage.setItem("civictrack_token", result.accessToken);
       localStorage.setItem("civictrack_user", JSON.stringify(result.user));
+      setAuthToken(result.accessToken);
       setUser(result.user);
       navigate(routeForRole(result.user.role));
     } catch (requestError) {
@@ -1093,6 +1097,10 @@ export default function App() {
       setError("");
       setUploadingStageByTask((current) => ({ ...current, [taskId]: stage }));
 
+      if (!authToken) {
+        throw new Error("Session expired. Please login again before uploading proof.");
+      }
+
       const imageUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result ?? ""));
@@ -1123,7 +1131,7 @@ export default function App() {
           filename: file.name,
           mimeType: file.type
         }
-      });
+      }, authToken);
 
       if (result.updatedTask) {
         setTasks((current) => current.map((task) => (task.id === taskId ? result.updatedTask! : task)));
@@ -1142,6 +1150,7 @@ export default function App() {
       .finally(() => {
         localStorage.removeItem("civictrack_token");
         localStorage.removeItem("civictrack_user");
+        setAuthToken(null);
         setUser(null);
         setRoute("/");
         setTasks([]);
