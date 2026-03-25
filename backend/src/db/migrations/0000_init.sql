@@ -257,7 +257,7 @@ VALUES (
   '11111111-1111-1111-1111-111111111111',
   'Ward 12',
   'WARD-12',
-  '{"type":"Polygon","coordinates":[[[77.204,28.609],[77.219,28.609],[77.219,28.619],[77.204,28.619],[77.204,28.609]]]}'
+  '{"type":"Polygon","coordinates":[[[73.814,15.898],[73.832,15.898],[73.832,15.911],[73.814,15.911],[73.814,15.898]]]}'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -287,8 +287,8 @@ ON CONFLICT (singleton_key) DO NOTHING;
 
 INSERT INTO geofences (id, name, ward_id, type, center_lat, center_lng, radius_meters, created_by)
 VALUES
-  ('22222222-2222-2222-2222-222222222221', 'Ward 12 Depot', '11111111-1111-1111-1111-111111111111', 'radius', 28.6142, 77.2089, 250, '00000000-0000-0000-0000-000000000002'),
-  ('22222222-2222-2222-2222-222222222222', 'Drainage Inspection Corridor', '11111111-1111-1111-1111-111111111111', 'radius', 28.6116, 77.2145, 420, '00000000-0000-0000-0000-000000000002')
+  ('22222222-2222-2222-2222-222222222221', 'Ward 12 Depot', '11111111-1111-1111-1111-111111111111', 'radius', 15.9048, 73.8211, 250, '00000000-0000-0000-0000-000000000002'),
+  ('22222222-2222-2222-2222-222222222222', 'Drainage Inspection Corridor', '11111111-1111-1111-1111-111111111111', 'radius', 15.9019, 73.8237, 420, '00000000-0000-0000-0000-000000000002')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO tasks (id, title, description, ward_id, geofence_id, assigned_to, assigned_by, status, priority, due_at, expected_photo_count)

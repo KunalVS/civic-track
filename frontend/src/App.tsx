@@ -67,6 +67,7 @@ interface TaskItem {
 }
 
 const wardId = "11111111-1111-1111-1111-111111111111";
+const workerOfflineSnapshotKey = "civictrack_worker_offline_snapshot";
 
 const fallbackDashboard: DashboardOverview = {
   kpis: {
@@ -95,6 +96,26 @@ const fallbackDashboard: DashboardOverview = {
 };
 
 const fallbackTasks: TaskItem[] = [];
+
+interface WorkerOfflineSnapshot {
+  workerId: string;
+  workerName: string;
+  assignedTasks: TaskItem[];
+  summary: {
+    attendance: {
+      checkedInToday: boolean;
+      presentDaysThisMonth: number;
+    };
+    status: "active" | "idle";
+    taskSummary: { assigned: number };
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+    capturedAt: string;
+  } | null;
+  updatedAt: string;
+}
 
 function getInitialRoute(): PublicRoutePath {
   const path = window.location.pathname as PublicRoutePath;
@@ -130,6 +151,24 @@ function readCachedUser() {
     localStorage.removeItem("civictrack_user");
     return null;
   }
+}
+
+function readWorkerOfflineSnapshot() {
+  const raw = localStorage.getItem(workerOfflineSnapshotKey);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as WorkerOfflineSnapshot;
+  } catch {
+    localStorage.removeItem(workerOfflineSnapshotKey);
+    return null;
+  }
+}
+
+function writeWorkerOfflineSnapshot(snapshot: WorkerOfflineSnapshot) {
+  localStorage.setItem(workerOfflineSnapshotKey, JSON.stringify(snapshot));
 }
 
 function AuthCard({
@@ -604,6 +643,7 @@ export default function App() {
   const [authHint, setAuthHint] = useState("");
   const [error, setError] = useState("");
   const [selectedGeofenceId, setSelectedGeofenceId] = useState<string | null>(null);
+  const [workerLastKnownLocation, setWorkerLastKnownLocation] = useState<WorkerOfflineSnapshot["location"]>(null);
   const [supervisorResources, setSupervisorResources] = useState<{
     workers: Array<{ id: string; name: string; status: string; wardId: string }>;
     geofences: Array<{ id: string; name: string; wardId: string; center: [number, number]; radiusMeters: number; type: "radius" }>;
@@ -676,7 +716,19 @@ export default function App() {
           socket.connect();
           socket.emit("presence:join", { userId: user.id, role: user.role });
         })
-        .catch((routeError) => setError((routeError as Error).message));
+        .catch((routeError) => {
+          const cachedSnapshot = readWorkerOfflineSnapshot();
+          if (cachedSnapshot && cachedSnapshot.workerId === user.id) {
+            setWorkerSummary(cachedSnapshot.summary);
+            setTasks(cachedSnapshot.assignedTasks);
+            setWorkerLastKnownLocation(cachedSnapshot.location);
+            setStatus("Worker offline mode: showing locally cached tasks and location");
+            setError("");
+            return;
+          }
+
+          setError((routeError as Error).message);
+        });
       return () => {
         socket.disconnect();
       };
@@ -715,6 +767,21 @@ export default function App() {
       };
     }
   }, [route, user]);
+
+  useEffect(() => {
+    if (route !== "/worker" || user?.role !== "worker" || !workerSummary) {
+      return;
+    }
+
+    writeWorkerOfflineSnapshot({
+      workerId: user.id,
+      workerName: user.fullName,
+      assignedTasks: tasks,
+      summary: workerSummary,
+      location: workerLastKnownLocation,
+      updatedAt: new Date().toISOString()
+    });
+  }, [route, tasks, user, workerSummary, workerLastKnownLocation]);
 
   useEffect(() => {
     const handleTracking = (payload: TrackingUpdate) => {
@@ -836,13 +903,21 @@ export default function App() {
     const sendLocationPing = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          socket.emit("tracking:ping", {
-            userId: user.id,
+          const nextLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
+            capturedAt: new Date().toISOString()
+          };
+
+          setWorkerLastKnownLocation(nextLocation);
+
+          socket.emit("tracking:ping", {
+            userId: user.id,
+            latitude: nextLocation.latitude,
+            longitude: nextLocation.longitude,
             accuracyMeters: position.coords.accuracy,
             batteryLevel: undefined,
-            capturedAt: new Date().toISOString()
+            capturedAt: nextLocation.capturedAt
           });
         },
         () => undefined,
@@ -1006,6 +1081,8 @@ export default function App() {
         setReports(null);
         setAuthHint("");
         setStatus("Awaiting authentication");
+        setWorkerLastKnownLocation(null);
+        localStorage.removeItem(workerOfflineSnapshotKey);
         window.location.replace("/");
       });
   }
