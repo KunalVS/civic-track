@@ -191,6 +191,23 @@ export async function getWorkerTasks() {
   return requestJson<TaskListResponse>("/worker/tasks");
 }
 
+export async function autoMarkWorkerLoginAttendance(payload: {
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number;
+  capturedAt: string;
+}) {
+  return requestJson<{
+    marked: boolean;
+    updatedExisting: boolean;
+    capturedAt?: string;
+    reason?: string;
+  }>("/attendance/auto-login-check-in", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function getSupervisorDashboard() {
   return requestJson<DashboardOverview>("/supervisor/dashboard");
 }

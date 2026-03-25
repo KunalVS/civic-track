@@ -7,6 +7,7 @@ import { TaskKanbanBoard } from "./components/TaskKanbanBoard";
 import { TaskTable } from "./components/TaskTable";
 import { AttendanceTrendChart, ProductivityBars } from "./components/TrendCharts";
 import {
+  autoMarkWorkerLoginAttendance,
   type AuthUser,
   type DashboardOverview,
   type Role,
@@ -938,9 +939,11 @@ export default function App() {
       return;
     }
 
+    let loginAttendanceSynced = false;
+
     const sendLocationPing = () => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const nextLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -948,6 +951,33 @@ export default function App() {
           };
 
           setWorkerLastKnownLocation(nextLocation);
+
+          if (!loginAttendanceSynced) {
+            try {
+              const attendanceResult = await autoMarkWorkerLoginAttendance({
+                latitude: nextLocation.latitude,
+                longitude: nextLocation.longitude,
+                accuracyMeters: position.coords.accuracy,
+                capturedAt: nextLocation.capturedAt
+              });
+
+              if (
+                attendanceResult.marked ||
+                attendanceResult.updatedExisting ||
+                attendanceResult.reason === "already_marked_within_24_hours"
+              ) {
+                loginAttendanceSynced = true;
+                const workerData = await getWorkerDashboard();
+                setWorkerSummary({
+                  attendance: workerData.attendance,
+                  status: workerData.status,
+                  taskSummary: workerData.taskSummary
+                });
+              }
+            } catch {
+              // Keep trying again on the next successful location read.
+            }
+          }
 
           socket.emit("tracking:ping", {
             userId: user.id,

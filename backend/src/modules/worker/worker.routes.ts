@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireRole } from "../../middleware/rbac.js";
+import { getAttendanceSummary } from "../attendance/attendance.service.js";
 import { listTasks } from "../tasks/tasks.service.js";
 
 const router = Router();
@@ -9,13 +10,11 @@ router.use(requireRole(["worker"]));
 router.get("/dashboard", async (req, res, next) => {
   try {
     const assignedTasks = await listTasks({ assignedTo: req.user!.id });
+    const attendance = await getAttendanceSummary(req.user!.id);
 
     res.json({
       user: req.user,
-      attendance: {
-        checkedInToday: true,
-        presentDaysThisMonth: 24
-      },
+      attendance,
       status: assignedTasks.length > 0 ? "active" : "idle",
       taskSummary: {
         assigned: assignedTasks.length
