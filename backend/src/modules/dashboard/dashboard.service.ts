@@ -1,7 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { completedFieldTasks, users } from "../../db/schema.js";
-import { getAttendanceTrend, getGeofences, getHeatmap } from "../demo/demo.store.js";
+import { getAttendanceTrend, getHeatmap } from "../demo/demo.store.js";
+import { listGeofences } from "../geofences/geofences.service.js";
 import { getLatestWorkerLocations } from "../tracking/tracking.socket.js";
 import { listTasks } from "../tasks/tasks.service.js";
 import { getAttendanceLeaderboard, getSupervisorMapWorkers } from "../workers/worker-directory.service.js";
@@ -16,6 +17,7 @@ export async function getDashboardOverview(filters: DashboardFilters = {}) {
     (worker) => !filters.workerId || worker.id === filters.workerId
   );
 
+  const geofences = await listGeofences(filters.wardId);
   const tasks = await listTasks(filters.workerId ? { assignedTo: filters.workerId } : {});
   const completedToday = tasks.filter((task) => task.status === "completed").length;
   const pendingTasks = tasks.filter((task) => task.status !== "completed").length;
@@ -57,7 +59,7 @@ export async function getDashboardOverview(filters: DashboardFilters = {}) {
     },
     map: {
       workers,
-      geofences: getGeofences(),
+      geofences,
       tasks
     },
     analytics: {

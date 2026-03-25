@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireRole } from "../../middleware/rbac.js";
 import { writeAuditLog } from "../audit/audit.service.js";
 import { getDashboardOverview } from "../dashboard/dashboard.service.js";
-import { getGeofences } from "../demo/demo.store.js";
+import { listGeofences } from "../geofences/geofences.service.js";
 import { createTask, listAssignableWorkers, listTasks } from "../tasks/tasks.service.js";
 import { emitTaskAssigned, getLatestWorkerLocations } from "../tracking/tracking.socket.js";
 
@@ -39,7 +39,7 @@ router.get("/resources", async (req, res, next) => {
   try {
     res.json({
       workers: await listAssignableWorkers(req.user?.wardId ?? undefined),
-      geofences: getGeofences()
+      geofences: await listGeofences(req.user?.wardId ?? undefined)
     });
   } catch (error) {
     next(error);
