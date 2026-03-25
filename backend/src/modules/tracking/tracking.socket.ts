@@ -28,6 +28,7 @@ const workerRouteHistory = new Map<string, TrackingPayload[]>();
 const workerRouteAnomalies = new Map<string, WorkerRouteAnomalyState>();
 const activeWorkerConnections = new Map<string, number>();
 let ioServer: Server | null = null;
+const liveLocationTtlMs = env.TRACKING_MIN_INTERVAL_SECONDS * 2 * 1000;
 
 function keepPreviousHour(route: TrackingPayload[]) {
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
@@ -121,6 +122,7 @@ export function registerTrackingNamespace(io: Server) {
         latestWorkerLocations.delete(userId);
         workerRouteHistory.delete(userId);
         workerRouteAnomalies.delete(userId);
+        io.emit("tracking:offline", { userId });
         return;
       }
 
@@ -130,6 +132,18 @@ export function registerTrackingNamespace(io: Server) {
 }
 
 export function getLatestWorkerLocations() {
+  const now = Date.now();
+
+  for (const [userId, snapshot] of latestWorkerLocations.entries()) {
+    const capturedAt = new Date(snapshot.capturedAt).getTime();
+    if (Number.isNaN(capturedAt) || now - capturedAt > liveLocationTtlMs) {
+      latestWorkerLocations.delete(userId);
+      workerRouteHistory.delete(userId);
+      workerRouteAnomalies.delete(userId);
+      activeWorkerConnections.delete(userId);
+    }
+  }
+
   return Array.from(latestWorkerLocations.values());
 }
 

@@ -38,6 +38,10 @@ interface TrackingUpdate {
   anomalyReasons?: string[];
 }
 
+interface TrackingOfflineUpdate {
+  userId: string;
+}
+
 interface TaskAssignedUpdate {
   id: string;
   title: string;
@@ -789,28 +793,66 @@ export default function App() {
         ...current,
         map: {
           ...current.map,
-          workers: current.map.workers.map((worker) =>
-            worker.id === payload.userId
-              ? {
-                  ...worker,
-                  latitude: payload.latitude,
-                  longitude: payload.longitude,
-                  lastSeenAt: payload.capturedAt,
-                  status: "moving",
-                  anomalyDetected: payload.anomalyDetected,
-                  anomalyReasons: payload.anomalyReasons ?? []
-                }
-              : worker
-          )
+          workers: (() => {
+            const existingWorker = current.map.workers.find((worker) => worker.id === payload.userId);
+            if (existingWorker) {
+              return current.map.workers.map((worker) =>
+                worker.id === payload.userId
+                  ? {
+                      ...worker,
+                      latitude: payload.latitude,
+                      longitude: payload.longitude,
+                      lastSeenAt: payload.capturedAt,
+                      status: "moving",
+                      anomalyDetected: payload.anomalyDetected,
+                      anomalyReasons: payload.anomalyReasons ?? []
+                    }
+                  : worker
+              );
+            }
+
+            const knownWorker = supervisorResources.workers.find((worker) => worker.id === payload.userId);
+            if (!knownWorker) {
+              return current.map.workers;
+            }
+
+            return [
+              {
+                id: knownWorker.id,
+                name: knownWorker.name,
+                role: "worker",
+                latitude: payload.latitude,
+                longitude: payload.longitude,
+                status: "moving",
+                anomalyDetected: payload.anomalyDetected,
+                anomalyReasons: payload.anomalyReasons ?? [],
+                lastSeenAt: payload.capturedAt,
+                wardId: knownWorker.wardId
+              },
+              ...current.map.workers
+            ];
+          })()
+        }
+      }));
+    };
+
+    const handleTrackingOffline = (payload: TrackingOfflineUpdate) => {
+      setDashboard((current) => ({
+        ...current,
+        map: {
+          ...current.map,
+          workers: current.map.workers.filter((worker) => worker.id !== payload.userId)
         }
       }));
     };
 
     socket.on("tracking:update", handleTracking);
+    socket.on("tracking:offline", handleTrackingOffline);
     return () => {
       socket.off("tracking:update", handleTracking);
+      socket.off("tracking:offline", handleTrackingOffline);
     };
-  }, []);
+  }, [supervisorResources.workers]);
 
   useEffect(() => {
     const handleTaskAssigned = (payload: TaskAssignedUpdate) => {
@@ -1068,6 +1110,7 @@ export default function App() {
   }
 
   function handleLogout() {
+    socket.disconnect();
     logout()
       .catch(() => undefined)
       .finally(() => {
