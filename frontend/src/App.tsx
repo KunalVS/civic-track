@@ -253,7 +253,7 @@ function LoginView({
   helperText: string;
   onLogin: (email: string, password: string) => Promise<void>;
 }) {
-  const [email, setEmail] = useState("supervisor@civictrack.local");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   return (
@@ -268,11 +268,11 @@ function LoginView({
         >
           <label>
             Email
-            <input value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input autoComplete="off" value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
           <label>
             Password
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
           <button type="submit" disabled={loading}>
             Login
@@ -1005,7 +1005,7 @@ export default function App() {
         setReports(null);
         setAuthHint("");
         setStatus("Awaiting authentication");
-        navigate("/login");
+        navigate("/");
       });
   }
 
